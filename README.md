@@ -26,7 +26,7 @@ Create `~/.config/omarchy/agents/litellm.json`:
 {
   "url": "https://litellm.example.com",
   "tokenFile": "~/.config/omarchy/agents/litellm.token",
-  "privacyMode": true,
+  "privacyMode": false,
   "refreshIntervalSec": 300
 }
 ```
@@ -57,7 +57,7 @@ Set `tokenEnv` in the config to use a different token variable.
 Today’s spend is for the current key; budget-period spend covers the user’s
 budget across keys. Daily charts use UTC dates.
 
-Set `privacyMode` to `true` to replace model IDs with `Model 1`, `Model 2`, …
+Set `privacyMode` to `true` to opt into replacing model IDs with `Model 1`, `Model 2`, …
 and round spend and token counts to useful approximate values. This keeps the
 panel informative without writing exact model or billing details to the local
 usage record. Budget percentages are still shown approximately.

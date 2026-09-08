@@ -2,6 +2,6 @@
   "url": "https://litellm.example.com",
   "tokenEnv": "LITELLM_TOKEN",
   "tokenFile": "",
-  "privacyMode": true,
+  "privacyMode": false,
   "refreshIntervalSec": 300
 }
