@@ -1,0 +1,6 @@
+{
+  "url": "https://litellm.example.com",
+  "tokenEnv": "LITELLM_TOKEN",
+  "tokenFile": "",
+  "refreshIntervalSec": 300
+}

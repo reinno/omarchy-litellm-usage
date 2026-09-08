@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "reinno.litellm-usage",
+  "name": "LiteLLM Usage",
+  "version": "0.1.0",
+  "author": "reinno",
+  "license": "MIT",
+  "description": "LiteLLM key spend, budget, and token history in the native Omarchy Agents panel.",
+  "kinds": ["service"],
+  "entryPoints": {"service": "Service.qml"},
+  "keepLoaded": true
+}

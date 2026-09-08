@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+litellm.json
+!examples/litellm.json
+*.token
+.pytest_cache/
