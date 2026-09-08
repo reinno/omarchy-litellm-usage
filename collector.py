@@ -17,7 +17,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-PLUGIN_ID = "reinno.litellm-usage"
+PLUGIN_ID = "reinno.omarchy-litellm-usage"
 MAX_PAGES = 100
 
 

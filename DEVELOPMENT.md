@@ -6,28 +6,28 @@ From the project directory:
 
 ```sh
 omarchy plugin validate .
-mkdir -p ~/.config/omarchy/plugins/reinno.litellm-usage
-cp manifest.json Service.qml collector.py LICENSE ~/.config/omarchy/plugins/reinno.litellm-usage/
+mkdir -p ~/.config/omarchy/plugins/reinno.omarchy-litellm-usage
+cp manifest.json Service.qml collector.py LICENSE ~/.config/omarchy/plugins/reinno.omarchy-litellm-usage/
 omarchy-shell shell rescanPlugins
 ```
 
 Configure credentials below, then enable:
 
 ```sh
-omarchy plugin enable reinno.litellm-usage
+omarchy plugin enable reinno.omarchy-litellm-usage
 ```
 
 ## Diagnostics and data
 
 ```sh
-omarchy-shell reinno.litellm-usage refresh
-omarchy-shell reinno.litellm-usage status
+omarchy-shell reinno.omarchy-litellm-usage refresh
+omarchy-shell reinno.omarchy-litellm-usage status
 ```
 
 Run the collector directly to inspect its display-safe JSON:
 
 ```sh
-python3 ~/.config/omarchy/plugins/reinno.litellm-usage/collector.py
+python3 ~/.config/omarchy/plugins/reinno.omarchy-litellm-usage/collector.py
 ```
 
 The record lives at `~/.local/state/omarchy/agents/usage/litellm.json`

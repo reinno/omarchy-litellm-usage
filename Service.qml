@@ -75,7 +75,7 @@ Item {
     }
 
     IpcHandler {
-        target: "reinno.litellm-usage"
+        target: "reinno.omarchy-litellm-usage"
         function refresh(): string {
             root.refresh()
             return "Refresh requested"

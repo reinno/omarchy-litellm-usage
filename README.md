@@ -45,7 +45,7 @@ not set, put your virtual key in the file using your editor.
 Then enable the plugin:
 
 ```sh
-omarchy plugin enable reinno.litellm-usage
+omarchy plugin enable reinno.omarchy-litellm-usage
 ```
 
 Open **Agents → LiteLLM**. Configuration stays outside the plugin and survives updates.
@@ -65,18 +65,18 @@ usage record. Budget percentages are still shown approximately.
 ## Update and refresh
 
 ```sh
-omarchy plugin update reinno.litellm-usage --yes
-omarchy-shell reinno.litellm-usage refresh
-omarchy-shell reinno.litellm-usage status
+omarchy plugin update reinno.omarchy-litellm-usage --yes
+omarchy-shell reinno.omarchy-litellm-usage refresh
+omarchy-shell reinno.omarchy-litellm-usage status
 ```
 
 ## Remove
 
 ```sh
-omarchy plugin disable reinno.litellm-usage
-python3 ~/.config/omarchy/plugins/reinno.litellm-usage/collector.py --remove-record
+omarchy plugin disable reinno.omarchy-litellm-usage
+python3 ~/.config/omarchy/plugins/reinno.omarchy-litellm-usage/collector.py --remove-record
 omarchy-shell omarchy.agents refresh
-omarchy plugin remove reinno.litellm-usage --yes
+omarchy plugin remove reinno.omarchy-litellm-usage --yes
 ```
 
 Your configuration and token file are kept.
