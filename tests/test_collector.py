@@ -130,12 +130,12 @@ class ConfigAndStateTests(unittest.TestCase):
         self.addCleanup(self.env.stop)
 
     def test_environment_configuration(self):
-        self.assertEqual(c.read_settings(self.path), ("https://example.com", TOKEN))
+        self.assertEqual(c.read_settings(self.path), ("https://example.com", TOKEN, False))
 
     def test_explicit_url_and_custom_token_environment(self):
         self.path.write_text(json.dumps({"url": "https://proxy.example/api/", "tokenEnv": "CUSTOM_TOKEN"}))
         os.environ["CUSTOM_TOKEN"] = "custom-token"
-        self.assertEqual(c.read_settings(self.path), ("https://proxy.example/api", "custom-token"))
+        self.assertEqual(c.read_settings(self.path), ("https://proxy.example/api", "custom-token", False))
 
     def test_private_token_file_and_environment_precedence(self):
         token_file = Path(self.temp.name) / "key"
@@ -179,6 +179,14 @@ class ConfigAndStateTests(unittest.TestCase):
         self.assertEqual(self.target.stat().st_mode & 0o777, 0o600)
         self.assertEqual(list(self.target.parent.iterdir()), [self.target])
         self.assertEqual(json.loads(self.target.read_text())["id"], "litellm")
+
+    def test_privacy_mode_uses_generic_models_and_rounded_values(self):
+        result = c.collect(FakeClient(user_budget=400, user_spend=101), TOKEN, date(2026, 1, 7), privacy=True)
+        self.assertTrue(result["privacyMode"])
+        self.assertEqual(result["tierLabel"], "$5 today · $100 this budget period")
+        self.assertEqual(list(result["modelUsage"]), ["Model 1"])
+        self.assertEqual(list(result["todayTokensByModel"]), ["Model 1"])
+        self.assertNotIn("test-model", json.dumps(result))
 
 
 if __name__ == "__main__":

@@ -74,7 +74,10 @@ def read_settings(path):
         raise UsageError("Set the token environment variable in the desktop session, or configure a private tokenFile.")
     if len(token) > 16384 or any(c.isspace() for c in token):
         raise UsageError("LiteLLM token must be a single value without whitespace.")
-    return url, token
+    privacy = config.get("privacyMode", False)
+    if not isinstance(privacy, bool):
+        raise UsageError("privacyMode must be true or false.")
+    return url, token, privacy
 
 
 class NoRedirects(HTTPRedirectHandler):
@@ -119,6 +122,42 @@ def number(value):
         raise UsageError("LiteLLM returned an invalid usage number.") from None
 
 
+def rounded_tokens(value):
+    value = int(value)
+    step = 1_000_000 if value >= 1_000_000 else 100_000 if value >= 100_000 else 10_000 if value >= 10_000 else 100
+    return int(round(value / step) * step) if value else 0
+
+
+def rounded_money(value):
+    return max(5, round(value / 5) * 5) if value else 0
+
+
+def apply_privacy(record, today_spend, budget_spend):
+    """Remove exact model IDs and round display values before writing the record."""
+    record["tierLabel"] = f"${rounded_money(today_spend):,.0f} today"
+    if budget_spend is not None:
+        record["tierLabel"] += f" · ${rounded_money(budget_spend):,.0f} this budget period"
+    record["todayTotalTokens"] = rounded_tokens(record["todayTotalTokens"])
+    for limit in record.get("limits", []):
+        if isinstance(limit.get("percent"), (int, float)):
+            limit["percent"] = round(limit["percent"] / 0.05) * 0.05
+    record["recentDays"] = [dict(day, messageCount=rounded_tokens(day["messageCount"])) for day in record["recentDays"]]
+    old_today = dict(record.get("todayTokensByModel", {}))
+    record["todayTokensByModel"] = {}
+    old_models = record["modelUsage"]
+    ordered = sorted(old_models, key=lambda name: sum(old_models[name].values()), reverse=True)
+    names = {name: f"Model {index + 1}" for index, name in enumerate(ordered)}
+    record["modelUsage"] = {}
+    for name in ordered:
+        bucket = old_models[name]
+        record["modelUsage"][names[name]] = {key: rounded_tokens(value) for key, value in bucket.items()}
+    # The panel uses this map for today's model chart.
+    for name, total in old_today.items():
+        if name in names:
+            record["todayTokensByModel"][names[name]] = rounded_tokens(total)
+    record["privacyMode"] = True
+
+
 def timestamp():
     return datetime.now(timezone.utc).isoformat()
 
@@ -157,7 +196,7 @@ def empty_record():
                 todayTotalTokens=0, activeDates=[], activeDays=0)
 
 
-def collect(client, token, today=None):
+def collect(client, token, today=None, privacy=False):
     today = today or datetime.now(timezone.utc).date()
     days = [str(today - timedelta(days=offset)) for offset in range(6, -1, -1)]
     info = client.get("/key/info").get("info")
@@ -223,6 +262,8 @@ def collect(client, token, today=None):
         title = budget_title(ub["duration"])
         record["limits"] = [dict(label=title, title=title, percent=ub["used"] / ub["budget"],
                                  resetsAt=ub["resetsAt"])]
+    if privacy:
+        apply_privacy(record, today_spend, ub["used"] if ub else None)
     return record
 
 
@@ -253,9 +294,9 @@ def cached_record(path, source):
 def refresh(config, target=None):
     source = None
     try:
-        url, token = read_settings(config)
+        url, token, privacy = read_settings(config)
         source = hashlib.sha256((url + "\0" + token).encode()).hexdigest()
-        record = collect(Client(url, token), token)
+        record = collect(Client(url, token), token, privacy=privacy)
         record["_source"] = source
         status = 0
     except Exception as error:
