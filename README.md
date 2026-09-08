@@ -7,7 +7,7 @@ LiteLLM usage in Omarchy’s native **Agents panel**:
 - Seven-day token history and model breakdown
 - Automatic refresh every five minutes
 
-![Privacy mode preview](assets/preview.svg)
+![LiteLLM privacy mode in the native Agents panel](assets/preview.png)
 
 Requires Omarchy’s native Agents panel, Python 3.10+, and a LiteLLM virtual key
 with permission to read usage. Budget information is shown when available.
