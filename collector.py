@@ -123,6 +123,32 @@ def timestamp():
     return datetime.now(timezone.utc).isoformat()
 
 
+def budget_title(duration):
+    period = str(duration or "").strip().lower()
+    if period in ("7d", "1w", "1wk", "1week"):
+        return "Weekly budget"
+    if period in ("30d", "31d", "1mo", "1month"):
+        return "Monthly budget"
+    if period in ("1d", "24h"):
+        return "Daily budget"
+    if period in ("1h", "60m"):
+        return "Hourly budget"
+    return "Budget"
+
+
+def user_budget(client, user_id):
+    """The LiteLLM user's periodic budget, or None. Never fatal to collection."""
+    try:
+        data = client.get("/user/info", user_id=user_id)
+    except UsageError:
+        return None
+    info = data.get("user_info")
+    if not isinstance(info, dict) or info.get("max_budget") is None:
+        return None
+    return dict(budget=number(info.get("max_budget")), used=number(info.get("spend", 0)),
+               duration=info.get("budget_duration"), resetsAt=str(info.get("budget_reset_at") or ""))
+
+
 def empty_record():
     return dict(schemaVersion=1, id="litellm", name="LiteLLM", scope="account",
                 collector=PLUGIN_ID, ready=False, hasLocalStats=False, hasPromptStats=False,
@@ -137,7 +163,6 @@ def collect(client, token, today=None):
     info = client.get("/key/info").get("info")
     if not isinstance(info, dict) or not info.get("user_id"):
         raise UsageError("LiteLLM must associate this virtual key with a user to query daily activity.")
-    spend = number(info.get("spend"))
     key_hash = hashlib.sha256(token.encode()).hexdigest()
     totals = {day: 0 for day in days}
     models, today_models = {}, {}
@@ -187,17 +212,17 @@ def collect(client, token, today=None):
     record = empty_record()
     active = [day for day in days if totals[day] > 0]
     record.update(ready=True, hasLocalStats=True,
-        tierLabel=f"${today_spend:,.2f} today · ${spend:,.2f} key spend",
+        tierLabel=f"${today_spend:,.2f} today",
         todayTotalTokens=totals[days[-1]], todayTokensByModel=today_models,
         recentDays=[dict(date=day, messageCount=totals[day]) for day in days],
         activeDates=active, activeDays=len(active), modelUsage=models)
-    budget = info.get("max_budget")
-    if budget is not None:
-        budget = number(budget)
-        record["tierLabel"] += f" / ${budget:,.2f} budget"
-        if budget > 0:
-            record["limits"] = [dict(label="Key budget", title="Key budget", percent=spend / budget,
-                                     resetsAt=str(info.get("budget_reset_at") or ""))]
+    ub = user_budget(client, info["user_id"])
+    if ub:
+        record["tierLabel"] += f" · ${ub['used']:,.2f} this budget period"
+    if ub and ub["budget"] > 0:
+        title = budget_title(ub["duration"])
+        record["limits"] = [dict(label=title, title=title, percent=ub["used"] / ub["budget"],
+                                 resetsAt=ub["resetsAt"])]
     return record
 
 

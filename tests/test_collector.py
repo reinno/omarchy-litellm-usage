@@ -24,16 +24,24 @@ def row(tokens=100, spend=1.25, key=HASH):
 
 
 class FakeClient:
-    def __init__(self, pages=None, budget=None):
+    def __init__(self, pages=None, user_budget=None, user_spend=0, user_duration="7d", user_info_error=False):
         self.pages = pages or [{"results": [row()], "metadata": {"total_pages": 1}}]
-        self.budget = budget
+        self.user_budget = user_budget
+        self.user_spend = user_spend
+        self.user_duration = user_duration
+        self.user_info_error = user_info_error
         self.calls = []
 
     def get(self, path, **query):
         self.calls.append((path, query))
         if path == "/key/info":
-            return {"info": {"user_id": "synthetic-user", "spend": 25, "max_budget": self.budget,
-                             "budget_reset_at": "2026-02-01T00:00:00Z"}}
+            return {"info": {"user_id": "synthetic-user", "spend": 25}}
+        if path == "/user/info":
+            if self.user_info_error:
+                raise c.UsageError("The LiteLLM token cannot read usage (HTTP 401/403); check its permissions.")
+            return {"user_info": {"user_id": "synthetic-user", "spend": self.user_spend,
+                                  "max_budget": self.user_budget, "budget_duration": self.user_duration,
+                                  "budget_reset_at": "2026-02-01T00:00:00Z"}}
         return self.pages[query["page"] - 1]
 
 
@@ -65,18 +73,33 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(result["todayTotalTokens"], 100)
         self.assertEqual(sum(result["modelUsage"]["test-model"].values()), 100)
 
-    def test_budget_is_a_limit_not_prepaid_balance(self):
-        result = c.collect(FakeClient(budget=100), TOKEN, date(2026, 1, 7))
+    def test_user_budget_is_a_limit_not_prepaid_balance(self):
+        result = c.collect(FakeClient(user_budget=400, user_spend=100), TOKEN, date(2026, 1, 7))
+        self.assertEqual(result["tierLabel"], "$1.25 today · $100.00 this budget period")
+        self.assertEqual(result["limits"][0]["title"], "Weekly budget")
         self.assertEqual(result["limits"][0]["percent"], .25)
         self.assertEqual(result["limits"][0]["resetsAt"], "2026-02-01T00:00:00Z")
         self.assertNotIn("balance", result)
 
-    def test_zero_and_exceeded_budget(self):
-        zero = c.collect(FakeClient(budget=0), TOKEN, date(2026, 1, 7))
+    def test_no_user_budget_emits_no_limit(self):
+        result = c.collect(FakeClient(user_budget=None), TOKEN, date(2026, 1, 7))
+        self.assertEqual(result["limits"], [])
+
+    def test_zero_and_exceeded_user_budget(self):
+        zero = c.collect(FakeClient(user_budget=0), TOKEN, date(2026, 1, 7))
         self.assertEqual(zero["limits"], [])
-        self.assertIn("$0.00 budget", zero["tierLabel"])
-        exceeded = c.collect(FakeClient(budget=10), TOKEN, date(2026, 1, 7))
+        exceeded = c.collect(FakeClient(user_budget=10, user_spend=25), TOKEN, date(2026, 1, 7))
         self.assertEqual(exceeded["limits"][0]["percent"], 2.5)
+
+    def test_budget_title_tracks_duration(self):
+        monthly = c.collect(FakeClient(user_budget=100, user_duration="30d"), TOKEN, date(2026, 1, 7))
+        self.assertEqual(monthly["limits"][0]["title"], "Monthly budget")
+
+    def test_user_info_failure_does_not_break_collection(self):
+        result = c.collect(FakeClient(user_budget=400, user_info_error=True), TOKEN, date(2026, 1, 7))
+        self.assertEqual(result["tierLabel"], "$1.25 today")
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["limits"], [])
 
     def test_missing_key_breakdown_is_not_reported_as_zero(self):
         with self.assertRaises(c.UsageError):

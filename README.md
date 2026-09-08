@@ -1,7 +1,8 @@
 # LiteLLM Usage for Omarchy
 
-Adds a **LiteLLM tab to the native Agents panel** with today's spend, key spend,
-key budget when configured, seven days of tokens, and a model breakdown.
+Adds a **LiteLLM tab to the native Agents panel** with today's spend, budget-period spend,
+your LiteLLM user's periodic budget when configured, seven days of tokens, and a
+model breakdown.
 
 This is a background service plugin. It does not add another bar widget or
 replace the native Agents panel. Python collects usage and the shell service
@@ -13,12 +14,26 @@ refreshes it every five minutes while Omarchy is running.
 - Python 3.10+ (standard library only).
 - A LiteLLM virtual key associated with a user, with access to `GET /key/info`
   and `GET /user/daily/activity`. Daily activity must expose per-key breakdowns.
+  `GET /user/info` is used for the budget meter when reachable; if the key
+  cannot read it, the tab simply omits the budget.
 - The native Agents widget enabled in your bar.
 
 The plugin reads the current key's usage. It never substitutes another key's
 activity or the whole team's spend when per-key data is unavailable.
 
-## Install from this checkout
+## Install
+
+```sh
+omarchy plugin add https://github.com/reinno/omarchy-litellm-usage.git
+```
+
+Configure credentials below, then run `omarchy plugin enable reinno.litellm-usage`.
+Update with `omarchy plugin update reinno.litellm-usage --yes`.
+
+Marketplace listing is a separate publication step; the plugin is not yet
+listed in the marketplace.
+
+### Install from a local checkout
 
 From the project directory:
 
@@ -34,12 +49,6 @@ Configure credentials below, then enable:
 ```sh
 omarchy plugin enable reinno.litellm-usage
 ```
-
-The repository is prepared for git-based plugin installation. Once it has a
-public repository URL, users can install it using
-`omarchy plugin add <repository-url> --enable` and update using
-`omarchy plugin update reinno.litellm-usage --yes`. Marketplace listing is a
-separate publication step; this checkout is not a published marketplace entry.
 
 ## Configuration
 
@@ -112,11 +121,15 @@ does not stop this service from collecting; disable the plugin to stop requests.
 
 ## Data interpretation
 
-- Spend comes from LiteLLM, in USD. `key spend` means the server's current
-  `spend` field, which may reset with a configured budget period; it is not
-  necessarily lifetime billing.
-- Budget meters use the key's `max_budget`, not a prepaid balance. No budget
-  is invented when the server reports `null`.
+- Spend comes from LiteLLM, in USD. Today's spend covers the current key;
+  `this budget period` shows the user's `spend` from `/user/info`, matching
+  the budget meter. It includes all keys charged to that user budget and is
+  omitted when the user budget is unavailable.
+- The budget meter uses the LiteLLM **user's** `max_budget` versus `spend` from
+  `GET /user/info`, not a prepaid balance. Its period label and reset countdown
+  come from `budget_duration` and `budget_reset_at`. No budget is invented when
+  the server reports `max_budget` as `null`, and a key-level `max_budget` is not
+  currently read.
 - Daily buckets use LiteLLM's UTC dates. The native panel labels dates in local
   time, so near midnight its “Today” label may differ from the UTC spend heading.
 - Model totals cover the same seven-day window. Cached reads and cache creation
